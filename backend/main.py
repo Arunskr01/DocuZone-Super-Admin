@@ -184,6 +184,21 @@ def delete_user(user_id: int, db = Depends(get_db)):
     db.commit()
     return {"message": "User deleted successfully"}
 
+@app.post("/api/login")
+def login_admin(creds: schemas.LoginRequest, db = Depends(get_db)):
+    cursor = db.cursor()
+    # specifically checking User_ID = 0
+    cursor.execute("SELECT [Password_Hash] FROM [DocuzoneDev].[dbo].[User] WHERE User_ID = 0 AND Username = ?", creds.username)
+    row = cursor.fetchone()
+    
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+    if row.Password_Hash != creds.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+    return {"message": "Login successful", "user": "admin"}
+
 # --- BILLING ENDPOINTS ---
 
 @app.get("/api/customers/{customer_id}/billing-summary", response_model=List[schemas.BillingSummaryResponse])

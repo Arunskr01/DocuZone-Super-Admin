@@ -62,3 +62,7 @@ class BillingChartResponse(BaseModel):
     Total_Documents: int
     Total_Pages: int
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+

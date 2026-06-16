@@ -88,3 +88,19 @@ export async function fetchModelBillingChart(modelId: number, startDate?: string
   return res.json();
 }
 
+export async function loginAdmin(data: any) {
+  const res = await fetch(`${API_BASE_URL}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Failed to login");
+  }
+  
+  return res.json();
+}
+
+

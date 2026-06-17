@@ -11,10 +11,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import CustomerUsers from "./CustomerUsers";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-export default function CustomerDetails() {
+import { Navigate } from "react-router-dom";
+
+export default function CustomerDetails({ authUser }: { authUser?: any }) {
   const { id } = useParams();
   const customerId = Number(id);
   
+  // Guard: if a Customer Admin tries to view another customer, bounce them to their own
+  if (authUser && authUser.User_ID !== 0 && customerId !== authUser.Customer_ID) {
+    return <Navigate to={`/customers/${authUser.Customer_ID}`} replace />;
+  }
+
   const [activeTab, setActiveTab] = useState<"billing" | "users">("billing");
   
   // Date filters for billing

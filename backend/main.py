@@ -187,8 +187,11 @@ def delete_user(user_id: int, db = Depends(get_db)):
 @app.post("/api/login")
 def login_admin(creds: schemas.LoginRequest, db = Depends(get_db)):
     cursor = db.cursor()
-    # specifically checking User_ID = 0
-    cursor.execute("SELECT [Password_Hash] FROM [DocuzoneDev].[dbo].[User] WHERE User_ID = 0 AND Username = ?", creds.username)
+    cursor.execute("""
+        SELECT [User_ID], [Customer_ID], [Username], [Password_Hash], [User_Type] 
+        FROM [DocuzoneDev].[dbo].[User] 
+        WHERE Username = ?
+    """, creds.username)
     row = cursor.fetchone()
     
     if not row:
@@ -197,7 +200,18 @@ def login_admin(creds: schemas.LoginRequest, db = Depends(get_db)):
     if row.Password_Hash != creds.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
         
-    return {"message": "Login successful", "user": "admin"}
+    if row.User_Type != "Super Admin":
+        raise HTTPException(status_code=403, detail="Unauthorized access. Super Admin role required.")
+        
+    return {
+        "message": "Login successful", 
+        "user": {
+            "User_ID": row.User_ID,
+            "Customer_ID": row.Customer_ID,
+            "Username": row.Username,
+            "User_Type": row.User_Type
+        }
+    }
 
 # --- BILLING ENDPOINTS ---
 

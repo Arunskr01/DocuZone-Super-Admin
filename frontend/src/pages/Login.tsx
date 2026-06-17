@@ -8,15 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function Login({ onLogin }: { onLogin: () => void }) {
+export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const loginMut = useMutation({
     mutationFn: () => loginAdmin({ username, password }),
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Login successful");
-      onLogin();
+      onLogin(data.user);
     },
     onError: (error: Error) => {
       toast.error(error.message || "Invalid credentials");

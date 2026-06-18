@@ -148,6 +148,29 @@ export default function CustomerDetails({ authUser }: { authUser?: any }) {
               </div>
             </Card>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="p-4 flex flex-col justify-center">
+                  <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <FileText className="h-4 w-4" /> Total Documents
+                  </div>
+                  <div className="text-2xl font-bold mt-2 text-primary">
+                    {billingSummary.reduce((sum: any, item: any) => sum + item.Total_Documents, 0).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 flex flex-col justify-center">
+                  <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Layers className="h-4 w-4" /> Total Pages
+                  </div>
+                  <div className="text-2xl font-bold mt-2 text-primary">
+                    {billingSummary.reduce((sum: any, item: any) => sum + item.Total_Pages, 0).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Models Summary Table */}
               <Card className="flex-1 overflow-hidden">

@@ -43,9 +43,10 @@ SuperAdmin/
 
 ## 🛠️ Features
 
+- **Authentication & Role-Based Access**: Secure login interface differentiating between System Admins (who manage all customers) and Customer Admins (who are restricted to their specific customer instance).
 - **Customer Management**: Create, read, update, and delete customer (tenant) records.
 - **User Management**: Add, update, and remove users under a specific customer, including assigning roles and verifying active statuses.
-- **Billing Dashboard**: Track and visualize the processing consumption (total documents and total pages) for different models and projects configured per customer.
+- **Billing Dashboard**: Track and visualize the processing consumption for different models and projects configured per customer. Features aggregated top-level statistic cards showing the overall Total Documents and Total Pages processed for a quick overview.
 - **Interactive Charts**: Day-by-day trend analysis of documents and pages processed using interactive area charts.
 
 ## ⚙️ How to Run

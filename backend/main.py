@@ -60,9 +60,9 @@ def create_customer(customer: schemas.CustomerCreate, db = Depends(get_db)):
     
     query = """
         INSERT INTO [DocuzoneDev].[dbo].[Customer] 
-        ([Customer_Code], [Customer_Name], [Contact_Person], [Super_Admin], [Country], [Status], [Created_Date])
+        ([Customer_Code], [Customer_Name], [Contact_Person], [Super_Admin], [Country], [Status], [Created_Date], [Created_By])
         OUTPUT INSERTED.*
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'System')
     """
     cursor.execute(query, (
         customer.Customer_Code, customer.Customer_Name, customer.Contact_Person,

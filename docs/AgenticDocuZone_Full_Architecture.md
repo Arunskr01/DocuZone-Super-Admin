@@ -38,7 +38,7 @@ The critical integration mechanisms are:
 - **`config.dat`** — A configuration file containing the `Model_ID` (placed next to `main.py`/`CLI.py`/`main.exe`). The Engine reads this file to identify which model configuration is being executed.
 - **Database Connection** — The Engine connects to the database on startup using settings from `.env`, queries the `Model` table with the `Model_ID` to retrieve the current extraction `Prompt` and `Project_ID`, and performs live status and extraction data insertions/updates.
 - **`main.exe`** — The compiled AgenticDocuZone Engine. Docuzone copies it into the hot folder and triggers it via `subprocess.Popen`.
-- **REST API (Alternative Entry Point)** — A standalone Flask web server (`run_api.py` on port `5001`) exposes endpoints allowing external clients to submit files directly. It processes documents asynchronously using a background thread pool, logs tracking records to the DB, saves raw JSON results locally, and avoids the hot-folder loop entirely.
+- **REST API (Alternative Entry Point)** — A standalone Flask web server (`run_api.py` on port `5001`) exposes endpoints allowing external clients to submit files directly. It requires a valid `X-API-Key` header for authentication and scope validation. It processes documents asynchronously using a background thread pool, logs tracking records to the DB, saves raw JSON results locally, and avoids the hot-folder loop entirely.
 
 ### Shared Tech Stack
 
@@ -363,7 +363,7 @@ d:\CodeBase\AgenticDocuZone\
 |---|---|
 | `src.utils.logger` | `SignalLogHandler` (bridges background thread logs to PySide6 UI), `get_logger(name)`, `log_to_csv(BASE_DIR, start_time, file_name, log_type, status, remarks)` |
 | `src.utils.file_manager` | `setup_base_folders(base_dir)`, `get_cache_folders(base_dir)`, `create_cache_folders(base_dir)`, `delete_cache_folder(base_dir)`, `get_input_files(input_dir)`, `move_to_archive(file_path, archive_dir)` |
-| `src.utils.db_operations` | `get_db_connection(server, database, username, password)`, `get_model_prompt(conn, model_id)`, `get_project_id(conn, model_id)`, `Insert_Execution_Master(...)`, `Update_Execution_Master(...)`, `Insert_Document_Table(...)`, `Update_Document_Table(...)`, `Insert_Execution_Audit(...)`, `Insert_Header_Data_Output(...)`, `Insert_Table_Data_Output(...)`, `Get_Execution_Status(...)`, `Get_Execution_Audits(...)`, `Get_Document_Status(...)` |
+| `src.utils.db_operations` | `get_db_connection(server, database, username, password)`, `Validate_API_Key(...)`, `Check_Key_Scope(...)`, `get_model_prompt(conn, model_id)`, `get_project_id(conn, model_id)`, `Insert_Execution_Master(...)`, `Update_Execution_Master(...)`, `Insert_Document_Table(...)`, `Update_Document_Table(...)`, `Insert_Execution_Audit(...)`, `Insert_Header_Data_Output(...)`, `Insert_Table_Data_Output(...)`, `Get_Execution_Status(...)`, `Get_Execution_Audits(...)`, `Get_Document_Status(...)` |
 
 
 ---
@@ -378,12 +378,12 @@ The **Super Admin System** is a sub-tool within the AgenticDocuZone ecosystem de
 SuperAdmin/
 ├── backend/                   # FastAPI backend application
 │   ├── database.py            # SQL Server database connection
-│   ├── main.py                # API endpoints and logic
+│   ├── main.py                # API endpoints and logic (including API key endpoints)
 │   └── schemas.py             # Pydantic validation schemas
 └── frontend/                  # React Vite frontend application
     ├── src/
     │   ├── api.ts             # API client functions
-    │   └── pages/             # React views (CustomerList, CustomerDetails, etc.)
+    │   └── pages/             # React views (CustomerList, CustomerDetails, CustomerApiKeys, etc.)
 ```
 
 ### 4.2. Key Features
@@ -391,6 +391,7 @@ SuperAdmin/
 - **Authentication & Role-Based Access:** Secures login differentiating between System Admins (overall managers) and Customer Admins (restricted to specific tenant).
 - **Customer Management:** End-to-end CRUD capabilities for managing client organizations (tenants).
 - **User Management:** Associate and manage users securely under specific customers.
+- **API Key Management:** Create, update, revoke, and delete secure API keys (`dz-` prefix) for customers, with granular scoping to restrict access to specific Projects or Models.
 - **Billing & Consumption Dashboard:** Monitors and visualizes document extraction usage, tallying total documents and pages processed by the Core Engine via interactive charts.
 
 ---
@@ -423,6 +424,9 @@ To prevent race conditions during concurrent API requests, the API server dynami
 
 ### REST API JSON Persistence
 To solve local scalability constraints, the API stores the raw extracted JSON payload directly in the database under the `Json_Output` column (defined as `nvarchar(max)`) in `Document_Table` during execution. The `GET /api/v1/jobs/<id>/result` endpoint retrieves and returns this string. As a secondary fallback/debug option, a copy of the JSON payload is also saved locally under `output/<execution_id>.json` on disk. If a job fails, the API scans the last `Execution_Audit` stage log to find and return the failure traceback message.
+
+### REST API Authentication & Scoping
+The REST API uses an `X-API-Key` header for authentication. Before any job is submitted or queried, the system validates the key in plaintext against the `API_Keys` table, ensuring it is active and not expired. Furthermore, a strict model-level scope check is performed against the `API_Key_Scope` table to ensure the authenticated customer has permission to access the requested `Model_ID`. This security boundary is completely contained within the request-entry layer (`api_server.py`) and does not pollute the background execution logic.
 
 
 

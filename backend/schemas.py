@@ -66,3 +66,49 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+# --- API KEY SCHEMAS ---
+
+class APIKeyCreate(BaseModel):
+    Label: Optional[str] = None
+    Expiry_Date: Optional[datetime] = None
+
+class APIKeyUpdate(BaseModel):
+    Label: Optional[str] = None
+    Expiry_Date: Optional[datetime] = None
+
+class APIKeyResponse(BaseModel):
+    API_Key_ID: int
+    Customer_ID: int
+    Key: str
+    Label: Optional[str] = None
+    Is_Active: bool
+    Last_Used_Date: Optional[datetime] = None
+    Expiry_Date: Optional[datetime] = None
+    Created_Date: Optional[datetime] = None
+    Created_By: Optional[str] = None
+    Revoked_Date: Optional[datetime] = None
+    Revoked_By: Optional[str] = None
+
+class APIScopeCreate(BaseModel):
+    Project_ID: int
+    Model_ID: Optional[int] = None
+
+class APIScopeResponse(BaseModel):
+    Scope_ID: int
+    API_Key_ID: int
+    Project_ID: int
+    Model_ID: Optional[int] = None
+    Granted_By: Optional[str] = None
+    Granted_Date: Optional[datetime] = None
+    Project_Name: Optional[str] = None
+    Model_Name: Optional[str] = None
+
+class ModelInfo(BaseModel):
+    Model_ID: int
+    Model_Name: str
+
+class ProjectModelsResponse(BaseModel):
+    Project_ID: int
+    Project_Name: str
+    Models: list[ModelInfo] = []
+

@@ -103,4 +103,83 @@ export async function loginAdmin(data: any) {
   return res.json();
 }
 
+// --- API Keys ---
 
+export async function fetchApiKeys(customerId: number) {
+  const res = await fetch(`${API_BASE_URL}/customers/${customerId}/api-keys`);
+  if (!res.ok) throw new Error("Failed to fetch API keys");
+  return res.json();
+}
+
+export async function createApiKey(customerId: number, data: any) {
+  const res = await fetch(`${API_BASE_URL}/customers/${customerId}/api-keys`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create API key");
+  return res.json();
+}
+
+export async function updateApiKey(customerId: number, apiKeyId: number, data: any) {
+  const res = await fetch(`${API_BASE_URL}/customers/${customerId}/api-keys/${apiKeyId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update API key");
+  return res.json();
+}
+
+export async function revokeApiKey(customerId: number, apiKeyId: number) {
+  const res = await fetch(`${API_BASE_URL}/customers/${customerId}/api-keys/${apiKeyId}/revoke`, {
+    method: "PUT",
+  });
+  if (!res.ok) throw new Error("Failed to revoke API key");
+  return res.json();
+}
+
+export async function deleteApiKey(customerId: number, apiKeyId: number) {
+  const res = await fetch(`${API_BASE_URL}/customers/${customerId}/api-keys/${apiKeyId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete API key");
+  return res.json();
+}
+
+// --- API Key Scopes ---
+
+export async function fetchApiKeyScopes(apiKeyId: number) {
+  const res = await fetch(`${API_BASE_URL}/api-keys/${apiKeyId}/scopes`);
+  if (!res.ok) throw new Error("Failed to fetch scopes");
+  return res.json();
+}
+
+export async function addApiKeyScope(apiKeyId: number, data: any) {
+  const res = await fetch(`${API_BASE_URL}/api-keys/${apiKeyId}/scopes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Failed to add scope");
+  }
+  return res.json();
+}
+
+export async function deleteApiKeyScope(scopeId: number) {
+  const res = await fetch(`${API_BASE_URL}/scopes/${scopeId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to remove scope");
+  return res.json();
+}
+
+// --- Projects/Models lookup ---
+
+export async function fetchCustomerProjectsModels(customerId: number) {
+  const res = await fetch(`${API_BASE_URL}/customers/${customerId}/projects-models`);
+  if (!res.ok) throw new Error("Failed to fetch projects and models");
+  return res.json();
+}

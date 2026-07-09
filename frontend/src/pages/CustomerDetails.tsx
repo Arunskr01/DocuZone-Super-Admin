@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import CustomerUsers from "./CustomerUsers";
+import CustomerApiKeys from "./CustomerApiKeys";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 import { Navigate } from "react-router-dom";
@@ -22,7 +23,7 @@ export default function CustomerDetails({ authUser }: { authUser?: any }) {
     return <Navigate to={`/customers/${authUser.Customer_ID}`} replace />;
   }
 
-  const [activeTab, setActiveTab] = useState<"billing" | "users">("billing");
+  const [activeTab, setActiveTab] = useState<"billing" | "users" | "apis">("billing");
   
   // Date filters for billing
   const [startDate, setStartDate] = useState("");
@@ -118,6 +119,13 @@ export default function CustomerDetails({ authUser }: { authUser?: any }) {
         >
           Manage Users
           {activeTab === "users" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />}
+        </button>
+        <button
+          className={`px-6 py-3 font-medium text-sm transition-colors relative ${activeTab === "apis" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setActiveTab("apis")}
+        >
+          APIs
+          {activeTab === "apis" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />}
         </button>
       </div>
 
@@ -276,6 +284,12 @@ export default function CustomerDetails({ authUser }: { authUser?: any }) {
         {activeTab === "users" && (
           <div className="animate-in fade-in duration-300">
             <CustomerUsers customerId={customerId} />
+          </div>
+        )}
+        
+        {activeTab === "apis" && (
+          <div className="animate-in fade-in duration-300">
+            <CustomerApiKeys customerId={customerId} />
           </div>
         )}
       </div>

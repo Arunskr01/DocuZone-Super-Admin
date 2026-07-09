@@ -56,7 +56,7 @@ export default function Login({ onLogin }: { onLogin: (user: any) => void }) {
               <Label htmlFor="username">Username</Label>
               <Input 
                 id="username" 
-                placeholder="admin" 
+                placeholder="Enter your username" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loginMut.isPending}

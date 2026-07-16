@@ -111,7 +111,8 @@ def get_customer_users(customer_id: int, db = Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("""
         SELECT [User_ID], [Customer_ID], [Username], [Email], [Full_Name],
-               [Phone], [User_Type], [Status], [Last_Login_At], [Created_Date], [Updated_Date]
+               [Phone], [User_Type], [Status], [Last_Login_At], [Created_Date], [Updated_Date],
+               [Verified_User]
         FROM [DocuzoneDev].[dbo].[User]
         WHERE Customer_ID = ?
     """, customer_id)
@@ -125,7 +126,7 @@ def create_user(user: schemas.UserCreate, db = Depends(get_db)):
     
     query = """
         INSERT INTO [DocuzoneDev].[dbo].[User] 
-        ([Customer_ID], [Username], [Email], [Password_Hash], [Full_Name], [Phone], [User_Type], [Status], [Created_Date], [Created_By], [Failed_Login_Count], [Is_Email_Verified])
+        ([Customer_ID], [Username], [Email], [Password_Hash], [Full_Name], [Phone], [User_Type], [Status], [Created_Date], [Created_By], [Failed_Login_Count], [Verified_User])
         OUTPUT INSERTED.*
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'System', 0, 0)
     """
@@ -174,6 +175,15 @@ def update_user(user_id: int, user: schemas.UserUpdate, db = Depends(get_db)):
 @app.delete("/api/users/{user_id}")
 def delete_user(user_id: int, db = Depends(get_db)):
     cursor = db.cursor()
+    
+    # Check if user is a verified top admin
+    cursor.execute("SELECT [Verified_User] FROM [DocuzoneDev].[dbo].[User] WHERE User_ID = ?", user_id)
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    if getattr(row, 'Verified_User', False):
+        raise HTTPException(status_code=403, detail="Cannot delete a verified top super admin user")
+        
     # Delete references first
     cursor.execute("DELETE FROM [DocuzoneDev].[dbo].[User_Audit_Log] WHERE User_ID = ?", user_id)
     cursor.execute("DELETE FROM [DocuzoneDev].[dbo].[User_Role] WHERE User_ID = ?", user_id)
@@ -341,6 +351,32 @@ def get_billing_chart(model_id: int, start_date: str = None, end_date: str = Non
         ORDER BY Date ASC
     """
 
+    cursor.execute(query, tuple(params))
+    rows = cursor.fetchall()
+    return [row_to_dict(cursor, row) for row in rows]
+
+@app.get("/api/models/{model_id}/executions", response_model=List[schemas.ExecutionDetailsResponse])
+def get_model_executions(model_id: int, start_date: str = None, end_date: str = None, db = Depends(get_db)):
+    cursor = db.cursor()
+    query = """
+        SELECT 
+            [Execution_ID], [Triggered_By], [Trigger_Source], [Execution_Status], 
+            [No_of_Documents], [No_of_page], [Start_Time], [End_Time],
+            DATEDIFF(second, [Start_Time], [End_Time]) as Runtime_Seconds
+        FROM [DocuzoneDev].[dbo].[Execution_Master]
+        WHERE [Model_ID] = ?
+    """
+    params = [model_id]
+    
+    if start_date:
+        query += " AND [Created_Date] >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND [Created_Date] <= ?"
+        params.append(end_date)
+        
+    query += " ORDER BY [Execution_ID] DESC"
+    
     cursor.execute(query, tuple(params))
     rows = cursor.fetchall()
     return [row_to_dict(cursor, row) for row in rows]

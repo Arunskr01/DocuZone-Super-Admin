@@ -7,7 +7,8 @@ import {
 } from "../api";
 import {
   Plus, Search, Key, Copy, Check, Eye, EyeOff, ShieldCheck, ShieldOff,
-  Trash2, Edit2, X, FolderTree, Clock, ShieldAlert
+  Trash2, Edit2, X, FolderTree, Clock, ShieldAlert,
+  BookOpen, ArrowRight, Send, Activity, Download, Terminal, ExternalLink, Globe, Lock, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ export default function CustomerApiKeys({ customerId }: { customerId: number }) 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRevokeDialogOpen, setIsRevokeDialogOpen] = useState(false);
+  const [isDocDialogOpen, setIsDocDialogOpen] = useState(false);
   const [revealedKeys, setRevealedKeys] = useState<Set<number>>(new Set());
   const [copiedKeyId, setCopiedKeyId] = useState<number | null>(null);
 
@@ -130,33 +132,6 @@ export default function CustomerApiKeys({ customerId }: { customerId: number }) 
     onError: () => toast.error("Failed to remove scope"),
   });
 
-  // --- Computed ---
-  const filteredKeys = useMemo(() => {
-    return apiKeys.filter((k: any) => {
-      const matchesSearch =
-        (k.Label || "").toLowerCase().includes(search.toLowerCase()) ||
-        (k.Key || "").toLowerCase().includes(search.toLowerCase());
-
-      if (statusFilter === "All") return matchesSearch;
-      if (statusFilter === "Active") return matchesSearch && k.Is_Active;
-      if (statusFilter === "Revoked") return matchesSearch && !k.Is_Active && k.Revoked_Date;
-      if (statusFilter === "Expired")
-        return matchesSearch && k.Expiry_Date && new Date(k.Expiry_Date) < new Date();
-      return matchesSearch;
-    });
-  }, [apiKeys, search, statusFilter]);
-
-  const totalKeys = apiKeys.length;
-  const activeKeys = apiKeys.filter((k: any) => k.Is_Active).length;
-  const revokedKeys = apiKeys.filter((k: any) => !k.Is_Active && k.Revoked_Date).length;
-  const expiredKeys = apiKeys.filter(
-    (k: any) => k.Expiry_Date && new Date(k.Expiry_Date) < new Date()
-  ).length;
-
-  const selectedProjectModels = projectsModels.find(
-    (p: any) => String(p.Project_ID) === scopeProjectId
-  )?.Models || [];
-
   // --- Helpers ---
   const getKeyStatus = (k: any) => {
     if (!k.Is_Active) return "Revoked";
@@ -172,6 +147,28 @@ export default function CustomerApiKeys({ customerId }: { customerId: number }) 
       default: return "bg-slate-100 text-slate-700 border-slate-200";
     }
   };
+
+  // --- Computed ---
+  const filteredKeys = useMemo(() => {
+    return apiKeys.filter((k: any) => {
+      const matchesSearch =
+        (k.Label || "").toLowerCase().includes(search.toLowerCase()) ||
+        (k.Key || "").toLowerCase().includes(search.toLowerCase());
+
+      if (!matchesSearch) return false;
+      if (statusFilter === "All") return true;
+      return getKeyStatus(k) === statusFilter;
+    });
+  }, [apiKeys, search, statusFilter]);
+
+  const totalKeys = apiKeys.length;
+  const activeKeys = apiKeys.filter((k: any) => getKeyStatus(k) === "Active").length;
+  const revokedKeys = apiKeys.filter((k: any) => getKeyStatus(k) === "Revoked").length;
+  const expiredKeys = apiKeys.filter((k: any) => getKeyStatus(k) === "Expired").length;
+
+  const selectedProjectModels = projectsModels.find(
+    (p: any) => String(p.Project_ID) === scopeProjectId
+  )?.Models || [];
 
   const maskKey = (key: string) => {
     if (!key || key.length <= 7) return key;
@@ -239,6 +236,66 @@ export default function CustomerApiKeys({ customerId }: { customerId: number }) 
 
   return (
     <div className="space-y-6">
+      {/* API Quick Reference */}
+      <Card className="overflow-hidden border-slate-200">
+        <div className="px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <Globe className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold tracking-tight">REST API</h3>
+              <p className="text-sm text-muted-foreground">Base URL: <code className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">http://localhost:5001</code></p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => setIsDocDialogOpen(true)}>
+            <BookOpen className="h-4 w-4" /> View API Documentation
+          </Button>
+        </div>
+        <CardContent className="p-0">
+          <div className="divide-y divide-slate-100">
+            {/* Endpoint 1: Submit */}
+            <div className="px-6 py-4 flex items-start gap-4 hover:bg-slate-50/50 transition-colors">
+              <div className="flex items-center gap-2.5 mt-0.5 shrink-0 w-28">
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 font-mono text-[11px] px-2 py-0.5">POST</Badge>
+              </div>
+              <div className="flex-1 min-w-0">
+                <code className="text-sm font-mono text-slate-800">/api/v1/jobs</code>
+                <p className="text-sm text-muted-foreground mt-0.5">Submit a document for extraction. Returns <code className="text-xs bg-slate-100 px-1 rounded">execution_id</code> for tracking.</p>
+              </div>
+              <Send className="h-4 w-4 text-slate-300 mt-1 shrink-0" />
+            </div>
+            {/* Endpoint 2: Status */}
+            <div className="px-6 py-4 flex items-start gap-4 hover:bg-slate-50/50 transition-colors">
+              <div className="flex items-center gap-2.5 mt-0.5 shrink-0 w-28">
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 font-mono text-[11px] px-2 py-0.5">GET</Badge>
+              </div>
+              <div className="flex-1 min-w-0">
+                <code className="text-sm font-mono text-slate-800">/api/v1/jobs/:id</code>
+                <p className="text-sm text-muted-foreground mt-0.5">Check the processing status, audit logs, and pipeline stage of a submitted job.</p>
+              </div>
+              <Activity className="h-4 w-4 text-slate-300 mt-1 shrink-0" />
+            </div>
+            {/* Endpoint 3: Result */}
+            <div className="px-6 py-4 flex items-start gap-4 hover:bg-slate-50/50 transition-colors">
+              <div className="flex items-center gap-2.5 mt-0.5 shrink-0 w-28">
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 font-mono text-[11px] px-2 py-0.5">GET</Badge>
+              </div>
+              <div className="flex-1 min-w-0">
+                <code className="text-sm font-mono text-slate-800">/api/v1/jobs/:id/result</code>
+                <p className="text-sm text-muted-foreground mt-0.5">Retrieve the final extracted JSON payload once the job is completed.</p>
+              </div>
+              <Download className="h-4 w-4 text-slate-300 mt-1 shrink-0" />
+            </div>
+          </div>
+          {/* Auth reminder footer */}
+          <div className="px-6 py-3 bg-amber-50/60 border-t border-amber-100 flex items-center gap-2">
+            <Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            <span className="text-xs text-amber-700">All endpoints require an active API key passed via the <code className="font-mono bg-amber-100/70 px-1 rounded">Authorization</code> header.</span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Top action bar */}
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold tracking-tight">API Key Management</h2>
@@ -582,6 +639,192 @@ export default function CustomerApiKeys({ customerId }: { customerId: number }) 
               Delete Key
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Full API Documentation Dialog */}
+      <Dialog open={isDocDialogOpen} onOpenChange={setIsDocDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b bg-slate-50/50 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg">API Developer Documentation</DialogTitle>
+                <DialogDescription>Complete guide to integrating with the AgenticDocuZone REST API</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 px-6 py-6 space-y-8 api-doc-content">
+            {/* Base URL */}
+            <section>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Globe className="h-4 w-4" /> Base URL
+              </h3>
+              <div className="bg-slate-900 text-slate-100 px-4 py-3 rounded-lg font-mono text-sm">
+                http://localhost:5001
+              </div>
+            </section>
+
+            {/* Authentication */}
+            <section>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Lock className="h-4 w-4" /> Authentication
+              </h3>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800 space-y-2">
+                <p>All API endpoints require authentication via an API Key.</p>
+                <ul className="list-disc list-inside space-y-1 text-amber-700">
+                  <li>Pass your API Key in the <code className="font-mono bg-amber-100 px-1.5 py-0.5 rounded text-xs">Authorization</code> HTTP header.</li>
+                  <li>The API Key must have active permissions and scope access for the specific <code className="font-mono bg-amber-100 px-1.5 py-0.5 rounded text-xs">model_id</code> being queried.</li>
+                </ul>
+              </div>
+            </section>
+
+            {/* Endpoint 1: Submit Document */}
+            <section className="border rounded-lg overflow-hidden">
+              <div className="px-5 py-4 bg-white border-b flex items-center gap-3">
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 font-mono text-xs px-2.5 py-1">POST</Badge>
+                <code className="font-mono text-sm font-medium text-slate-800">/api/v1/jobs</code>
+                <span className="text-sm text-muted-foreground ml-auto">Submit Document</span>
+              </div>
+              <div className="p-5 space-y-4 bg-slate-50/30">
+                <p className="text-sm text-slate-600">Submit a PDF or Excel document to the core extraction engine. Requires <code className="font-mono bg-slate-100 px-1 rounded text-xs">multipart/form-data</code> content type.</p>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Required Headers</h4>
+                  <div className="overflow-hidden rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead><tr className="bg-slate-100"><th className="text-left px-3 py-2 font-medium text-slate-600">Header</th><th className="text-left px-3 py-2 font-medium text-slate-600">Description</th></tr></thead>
+                      <tbody>
+                        <tr className="border-t"><td className="px-3 py-2 font-mono text-xs">Authorization</td><td className="px-3 py-2 text-slate-600">Your API Key (e.g., <code className="bg-slate-100 px-1 rounded text-xs">dz-your-api-key</code>)</td></tr>
+                        <tr className="border-t"><td className="px-3 py-2 font-mono text-xs">dz-user</td><td className="px-3 py-2 text-slate-600">Identifier for the user or system triggering the job (for audit logging)</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Form Parameters</h4>
+                  <div className="overflow-hidden rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead><tr className="bg-slate-100"><th className="text-left px-3 py-2 font-medium text-slate-600">Field</th><th className="text-left px-3 py-2 font-medium text-slate-600">Type</th><th className="text-left px-3 py-2 font-medium text-slate-600">Description</th></tr></thead>
+                      <tbody>
+                        <tr className="border-t"><td className="px-3 py-2 font-mono text-xs">file</td><td className="px-3 py-2 text-slate-500">File</td><td className="px-3 py-2 text-slate-600">Document to extract (.pdf or .xlsx)</td></tr>
+                        <tr className="border-t"><td className="px-3 py-2 font-mono text-xs">model_id</td><td className="px-3 py-2 text-slate-500">Integer</td><td className="px-3 py-2 text-slate-600">Target Model ID configuration</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Terminal className="h-3.5 w-3.5" /> cURL Example</h4>
+                  <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg text-xs font-mono overflow-x-auto leading-relaxed"><code>{`curl -X POST http://localhost:5001/api/v1/jobs \\
+  -H "Authorization: dz-your-api-key-here" \\
+  -H "dz-user: john_doe" \\
+  -F "file=@/path/to/invoice.pdf" \\
+  -F "model_id=3008"`}</code></pre>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Zap className="h-3.5 w-3.5" /> Success Response <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-1">202</Badge></h4>
+                  <pre className="bg-slate-900 text-emerald-300 p-4 rounded-lg text-xs font-mono overflow-x-auto leading-relaxed"><code>{`{
+  "execution_id": 12345,
+  "doc_id": 9876,
+  "status": "Processing"
+}`}</code></pre>
+                </div>
+              </div>
+            </section>
+
+            {/* Endpoint 2: Check Job Status */}
+            <section className="border rounded-lg overflow-hidden">
+              <div className="px-5 py-4 bg-white border-b flex items-center gap-3">
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 font-mono text-xs px-2.5 py-1">GET</Badge>
+                <code className="font-mono text-sm font-medium text-slate-800">/api/v1/jobs/:execution_id</code>
+                <span className="text-sm text-muted-foreground ml-auto">Check Job Status</span>
+              </div>
+              <div className="p-5 space-y-4 bg-slate-50/30">
+                <p className="text-sm text-slate-600">Poll this endpoint to monitor the progress of a submitted extraction job. Returns the current status, timestamps, document details, and real-time audit logs of pipeline stages.</p>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Required Headers</h4>
+                  <div className="overflow-hidden rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead><tr className="bg-slate-100"><th className="text-left px-3 py-2 font-medium text-slate-600">Header</th><th className="text-left px-3 py-2 font-medium text-slate-600">Description</th></tr></thead>
+                      <tbody>
+                        <tr className="border-t"><td className="px-3 py-2 font-mono text-xs">Authorization</td><td className="px-3 py-2 text-slate-600">Your API Key</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Terminal className="h-3.5 w-3.5" /> cURL Example</h4>
+                  <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg text-xs font-mono overflow-x-auto leading-relaxed"><code>{`curl -X GET http://localhost:5001/api/v1/jobs/12345 \\
+  -H "Authorization: dz-your-api-key-here"`}</code></pre>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Response Statuses</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Running</Badge>
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Completed</Badge>
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Failed</Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Partial</Badge>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Endpoint 3: Retrieve Job Result */}
+            <section className="border rounded-lg overflow-hidden">
+              <div className="px-5 py-4 bg-white border-b flex items-center gap-3">
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 font-mono text-xs px-2.5 py-1">GET</Badge>
+                <code className="font-mono text-sm font-medium text-slate-800">/api/v1/jobs/:execution_id/result</code>
+                <span className="text-sm text-muted-foreground ml-auto">Retrieve Result</span>
+              </div>
+              <div className="p-5 space-y-4 bg-slate-50/30">
+                <p className="text-sm text-slate-600">Once a job's status is <code className="font-mono bg-slate-100 px-1 rounded text-xs">Completed</code>, use this endpoint to retrieve the final structured JSON payload containing the extracted Headers and Tables.</p>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Required Headers</h4>
+                  <div className="overflow-hidden rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead><tr className="bg-slate-100"><th className="text-left px-3 py-2 font-medium text-slate-600">Header</th><th className="text-left px-3 py-2 font-medium text-slate-600">Description</th></tr></thead>
+                      <tbody>
+                        <tr className="border-t"><td className="px-3 py-2 font-mono text-xs">Authorization</td><td className="px-3 py-2 text-slate-600">Your API Key</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Terminal className="h-3.5 w-3.5" /> cURL Example</h4>
+                  <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg text-xs font-mono overflow-x-auto leading-relaxed"><code>{`curl -X GET http://localhost:5001/api/v1/jobs/12345/result \\
+  -H "Authorization: dz-your-api-key-here"`}</code></pre>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Expected Responses</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0 text-[10px] px-1.5 py-0">200</Badge>
+                      <span className="text-slate-600">Completed — Returns the complete nested JSON structure of extracted data.</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shrink-0 text-[10px] px-1.5 py-0">202</Badge>
+                      <span className="text-slate-600">Still Processing — Returns a message indicating the job is still running.</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 shrink-0 text-[10px] px-1.5 py-0">500</Badge>
+                      <span className="text-slate-600">Failed — Returns the failure traceback/remark from the failed stage.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

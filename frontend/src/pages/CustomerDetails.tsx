@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCustomers, fetchCustomerBillingSummary, fetchModelBillingChart } from "../api";
+import { fetchCustomers, fetchCustomerBillingSummary, fetchModelBillingChart, fetchModelExecutions } from "../api";
 import { ChevronRight, Calendar as CalendarIcon, FileText, Layers, BarChart2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +60,13 @@ export default function CustomerDetails({ authUser }: { authUser?: any }) {
   const { data: chartData = [], isLoading: isChartLoading } = useQuery({
     queryKey: ["billing-chart", selectedModelId, startDate, endDate],
     queryFn: () => fetchModelBillingChart(selectedModelId!, startDate || undefined, endDate || undefined),
+    enabled: !!selectedModelId,
+  });
+
+  // Fetch Executions for selected model
+  const { data: executionsData = [], isLoading: isExecutionsLoading } = useQuery({
+    queryKey: ["model-executions", selectedModelId, startDate, endDate],
+    queryFn: () => fetchModelExecutions(selectedModelId!, startDate || undefined, endDate || undefined),
     enabled: !!selectedModelId,
   });
 
@@ -179,16 +186,16 @@ export default function CustomerDetails({ authUser }: { authUser?: any }) {
               </Card>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex flex-col lg:flex-row gap-6 items-stretch">
               {/* Models Summary Table */}
-              <Card className="flex-1 overflow-hidden">
-                <CardHeader>
+              <Card className="flex-1 lg:max-w-[35%] flex flex-col overflow-hidden">
+                <CardHeader className="shrink-0">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Layers className="h-5 w-5 text-primary" /> Model Consumption
                   </CardTitle>
                   <CardDescription>Click a model to view detailed charts</CardDescription>
                 </CardHeader>
-                <div className="overflow-auto border-t">
+                <div className="overflow-auto border-t flex-1">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -223,60 +230,125 @@ export default function CustomerDetails({ authUser }: { authUser?: any }) {
                 </div>
               </Card>
 
-              {/* Chart Panel */}
-              {selectedModelId ? (
-                <Card className="flex-1 flex flex-col h-[500px] shrink-0 animate-in slide-in-from-right-8 duration-300">
-                  <CardHeader className="border-b">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <BarChart2 className="h-5 w-5 text-primary" /> Daily Trend
-                    </CardTitle>
-                    <CardDescription>
-                      {billingSummary.find((s: any) => s.Model_ID === selectedModelId)?.Model_Name}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6 flex-1 min-h-0">
-                    {isChartLoading ? (
-                      <div className="h-full flex items-center justify-center text-muted-foreground">Loading chart...</div>
-                    ) : chartData.length === 0 ? (
-                      <div className="h-full flex items-center justify-center text-muted-foreground flex-col gap-2">
-                        <BarChart2 className="h-10 w-10 opacity-20" />
-                        <p>No daily data available.</p>
-                      </div>
-                    ) : (
-                      <div className="h-full w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="colorDocs" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                              </linearGradient>
-                              <linearGradient id="colorPages" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="Date" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={false} tickMargin={10} minTickGap={30} />
-                            <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={false} tickMargin={10} />
-                            <Tooltip 
-                              contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            />
-                            <Area type="monotone" dataKey="Total_Documents" name="Documents" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorDocs)" />
-                            <Area type="monotone" dataKey="Total_Pages" name="Pages" stroke="#0ea5e9" strokeWidth={2} fillOpacity={1} fill="url(#colorPages)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card className="flex-1 flex flex-col items-center justify-center p-12 text-center h-[500px] shrink-0 bg-slate-50/50 border-dashed">
-                  <BarChart2 className="h-12 w-12 text-slate-300 mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900">No model selected</h3>
-                  <p className="text-sm text-slate-500 mt-2 max-w-sm">Select a model from the consumption table to view the daily processing trends and statistics.</p>
-                </Card>
-              )}
+              {/* Right Side Stack: Chart & Execution Details */}
+              <div className="flex-1 lg:max-w-[65%] flex flex-col gap-6">
+                {/* Chart Panel */}
+                {selectedModelId ? (
+                  <Card className="flex flex-col h-[350px] shrink-0 animate-in slide-in-from-right-8 duration-300">
+                    <CardHeader className="border-b shrink-0 py-4">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <BarChart2 className="h-5 w-5 text-primary" /> Daily Trend
+                      </CardTitle>
+                      <CardDescription>
+                        {billingSummary.find((s: any) => s.Model_ID === selectedModelId)?.Model_Name}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 flex-1 min-h-0">
+                      {isChartLoading ? (
+                        <div className="h-full flex items-center justify-center text-muted-foreground">Loading chart...</div>
+                      ) : chartData.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-muted-foreground flex-col gap-2">
+                          <BarChart2 className="h-10 w-10 opacity-20" />
+                          <p>No daily data available.</p>
+                        </div>
+                      ) : (
+                        <div className="h-full w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="colorDocs" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                                </linearGradient>
+                                <linearGradient id="colorPages" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>
+                                  <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="Date" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={false} tickMargin={10} minTickGap={30} />
+                              <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={false} tickMargin={10} />
+                              <Tooltip 
+                                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                              />
+                              <Area type="monotone" dataKey="Total_Documents" name="Documents" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorDocs)" />
+                              <Area type="monotone" dataKey="Total_Pages" name="Pages" stroke="#0ea5e9" strokeWidth={2} fillOpacity={1} fill="url(#colorPages)" />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="flex-1 flex flex-col items-center justify-center p-12 text-center shrink-0 bg-slate-50/50 border-dashed min-h-[500px]">
+                    <BarChart2 className="h-12 w-12 text-slate-300 mb-4" />
+                    <h3 className="text-lg font-medium text-slate-900">No model selected</h3>
+                    <p className="text-sm text-slate-500 mt-2 max-w-sm">Select a model from the consumption table to view the daily processing trends and statistics.</p>
+                  </Card>
+                )}
+
+                {/* Execution Details Panel */}
+                {selectedModelId && (
+                  <Card className="flex flex-col h-[350px] shrink-0 animate-in fade-in slide-in-from-bottom-8 duration-300 overflow-hidden">
+                    <CardHeader className="shrink-0 py-4">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" /> Execution Details
+                      </CardTitle>
+                      <CardDescription>
+                        Execution logs and runtime metrics for {billingSummary.find((s: any) => s.Model_ID === selectedModelId)?.Model_Name}
+                      </CardDescription>
+                    </CardHeader>
+                    <div className="overflow-auto flex-1 min-h-0 border-t">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="whitespace-nowrap">ID</TableHead>
+                            <TableHead className="whitespace-nowrap">Trigger Source</TableHead>
+                            <TableHead className="whitespace-nowrap">Triggered By</TableHead>
+                            <TableHead className="whitespace-nowrap">Status</TableHead>
+                            <TableHead className="whitespace-nowrap text-right">Documents</TableHead>
+                            <TableHead className="whitespace-nowrap text-right">Pages</TableHead>
+                            <TableHead className="whitespace-nowrap">Start Time</TableHead>
+                            <TableHead className="whitespace-nowrap">End Time</TableHead>
+                            <TableHead className="whitespace-nowrap text-right">Runtime (s)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {isExecutionsLoading ? (
+                            <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading execution details...</TableCell></TableRow>
+                          ) : executionsData.length === 0 ? (
+                            <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No execution logs found for this model in the selected period.</TableCell></TableRow>
+                          ) : (
+                            executionsData.map((exec: any) => (
+                              <TableRow key={exec.Execution_ID}>
+                                <TableCell className="font-mono text-xs whitespace-nowrap">{exec.Execution_ID}</TableCell>
+                                <TableCell className="whitespace-nowrap">{exec.Trigger_Source || "—"}</TableCell>
+                                <TableCell className="whitespace-nowrap">{exec.Triggered_By || "—"}</TableCell>
+                                <TableCell className="whitespace-nowrap">
+                                  <Badge variant="outline" className={
+                                    exec.Execution_Status === "Completed" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                    exec.Execution_Status === "Failed" ? "bg-red-50 text-red-700 border-red-200" :
+                                    exec.Execution_Status === "Running" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                    exec.Execution_Status === "Partial" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                    "bg-slate-50 text-slate-700 border-slate-200"
+                                  }>
+                                    {exec.Execution_Status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right whitespace-nowrap">{exec.No_of_Documents ?? "—"}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">{exec.No_of_page ?? "—"}</TableCell>
+                                <TableCell className="text-muted-foreground text-xs whitespace-nowrap">{exec.Start_Time ? new Date(exec.Start_Time).toLocaleString() : "—"}</TableCell>
+                                <TableCell className="text-muted-foreground text-xs whitespace-nowrap">{exec.End_Time ? new Date(exec.End_Time).toLocaleString() : "—"}</TableCell>
+                                <TableCell className="text-right font-mono text-xs whitespace-nowrap">{exec.Runtime_Seconds ?? "—"}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Card>
+                )}
+              </div>
             </div>
           </div>
         )}

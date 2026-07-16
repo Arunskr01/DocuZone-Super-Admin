@@ -88,6 +88,16 @@ export async function fetchModelBillingChart(modelId: number, startDate?: string
   return res.json();
 }
 
+export async function fetchModelExecutions(modelId: number, startDate?: string, endDate?: string) {
+  const url = new URL(`${API_BASE_URL}/models/${modelId}/executions`);
+  if (startDate) url.searchParams.append("start_date", startDate);
+  if (endDate) url.searchParams.append("end_date", endDate);
+  
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error("Failed to fetch model executions");
+  return res.json();
+}
+
 export async function loginAdmin(data: any) {
   const res = await fetch(`${API_BASE_URL}/login`, {
     method: "POST",

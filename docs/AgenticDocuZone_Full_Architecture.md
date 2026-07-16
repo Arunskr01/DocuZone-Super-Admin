@@ -38,12 +38,12 @@ The critical integration mechanisms are:
 - **`config.dat`** — A configuration file containing the `Model_ID` (placed next to `main.py`/`CLI.py`/`main.exe`). The Engine reads this file to identify which model configuration is being executed.
 - **Database Connection** — The Engine connects to the database on startup using settings from `.env`, queries the `Model` table with the `Model_ID` to retrieve the current extraction `Prompt` and `Project_ID`, and performs live status and extraction data insertions/updates.
 - **`main.exe`** — The compiled AgenticDocuZone Engine. Docuzone copies it into the hot folder and triggers it via `subprocess.Popen`.
-- **REST API (Alternative Entry Point)** — A standalone Flask web server (`run_api.py` on port `5001`) exposes endpoints allowing external clients to submit files directly. It requires a valid `X-API-Key` header for authentication and scope validation. It processes documents asynchronously using a background thread pool, logs tracking records to the DB, saves raw JSON results locally, and avoids the hot-folder loop entirely.
+- **REST API (Alternative Entry Point)** — A standalone Flask web server (`run_api.py` on port `5001`) exposes endpoints allowing external clients to submit files directly. It requires a valid `Authorization` header for authentication and scope validation, along with a mandatory `dz-user` header when submitting jobs. It processes documents asynchronously using a background thread pool, logs tracking records to the DB, saves raw JSON results locally, and avoids the hot-folder loop entirely.
 
 ### Shared Tech Stack
 
 - **Backend (Docuzone):** Python (Flask), running on port `5000`
-- **Frontend (Docuzone):** Vanilla HTML, CSS, JavaScript (SheetJS for Excel preview, Ionicons for icons)
+- **Frontend (Docuzone):** React SPA (Vite), Context API, Axios, SheetJS for Excel preview, Ionicons for icons
 - **Core Engine & REST API:** Python (Flask, PySide6 GUI, CLI entry points), Azure/ABBYY OCR, OpenAI / Ollama LLMs, MS SQL Server database connection (via `pyodbc`)
 - **SuperAdmin System:** Python (FastAPI backend), React/TypeScript (Vite frontend), SQL Server
 - **Extraction Scripts:** `Extractor.py`, `TestModel.py`, `main.exe`, `run_api.py`
@@ -67,10 +67,13 @@ d:\AgenticCR\
 │   └── Documents/        # Temporary storage for uploaded documents during testing
 ├── Extracted JSON/       # Output directory for JSON files from extraction scripts
 ├── Templates/            # Pre-defined JSON templates for extraction fields
-└── static/               # Frontend assets served by Flask
-    ├── index.html        # Main user interface
-    ├── style.css         # UI styling (glassmorphism, dark/light themes)
-    └── app.js            # Frontend logic and state management
+├── frontend/             # React SPA Workspace (Vite)
+│   ├── src/              # React components, Context API, and logic
+│   ├── vite.config.js    # Vite dev server and proxy config
+│   └── package.json      # Dependencies
+└── static/               # Compiled frontend production build served by Flask
+    ├── index.html        
+    └── assets/           
 ```
 
 ---
@@ -119,11 +122,11 @@ Serves `static/index.html`.
 
 ---
 
-### 2.3. Frontend Architecture (`app.js` & `index.html`)
+### 2.3. Frontend Architecture (React SPA)
 
-The frontend is a Single Page Application (SPA) managing projects, AI model instances, and extraction configurations.
+The frontend is a React Single Page Application (SPA) built with Vite, managing projects, AI model instances, and extraction configurations through centralized state.
 
-#### State Management (`app.js`)
+#### State Management (`AppContext.jsx`)
 
 | State Property | Description |
 |---|---|
@@ -285,7 +288,7 @@ d:\CodeBase\AgenticDocuZone\
 - Iterates over all files in `input/` via `get_input_files`.
 - For each file:
   - Deletes and recreates the cache folders to ensure a clean slate.
-  - Derives the document's MIME type and computes the file size (KB) and page count.
+  - Derives the document's MIME type, computes the file size (KB), and sets initial page count (for PDFs/Images). For Excel files, the page count is calculated dynamically later based on LLM token usage (1 page per 3000 tokens).
   - Inserts a record for the document in the `Document_Table` with status `"Processing"` and audited fields (using the `execution_id` and hostname). This returns `doc_id`.
   - Logs the start of processing via the CSV logger and the PySide6 UI signals.
 
@@ -416,8 +419,8 @@ During execution, five database tables are updated in real-time to log execution
 To prevent connection overhead in single-user modes, a single connection is established at the beginning of the `CLI.py` run or `main.py` worker thread run.
 For multi-threaded environments (like the REST API), connections are established on a **per-job basis** to maintain thread safety. In all execution paths, the active database connection is safely closed inside a `finally` block to prevent leaks.
 
-### Hostname-Based Auditing
-Audit columns such as `Triggered_By`, `Created_By`, and `Updated_By` are populated dynamically using the computer's hostname fetched via `socket.gethostname()`. This provides a reliable trail identifying which client machine executed the extraction runner.
+### Auditing & User Tracking
+In the desktop/CLI engine, audit columns such as `Triggered_By`, `Created_By`, and `Updated_By` are populated dynamically using the computer's hostname fetched via `socket.gethostname()`. In the REST API, the mandatory `dz-user` header is passed down to track the exact user who triggered the job, overriding the server's hostname. This provides a reliable trail identifying the executor.
 
 ### Isolated Cache Sandboxing (REST API)
 To prevent race conditions during concurrent API requests, the API server dynamically sandboxes each job's temporary workspace in `Cache_<execution_id>/` (e.g. `Cache_20117/Cache/Images`). All intermediate files are isolated and completely deleted inside a `finally` block at job completion or failure.
@@ -426,7 +429,7 @@ To prevent race conditions during concurrent API requests, the API server dynami
 To solve local scalability constraints, the API stores the raw extracted JSON payload directly in the database under the `Json_Output` column (defined as `nvarchar(max)`) in `Document_Table` during execution. The `GET /api/v1/jobs/<id>/result` endpoint retrieves and returns this string. As a secondary fallback/debug option, a copy of the JSON payload is also saved locally under `output/<execution_id>.json` on disk. If a job fails, the API scans the last `Execution_Audit` stage log to find and return the failure traceback message.
 
 ### REST API Authentication & Scoping
-The REST API uses an `X-API-Key` header for authentication. Before any job is submitted or queried, the system validates the key in plaintext against the `API_Keys` table, ensuring it is active and not expired. Furthermore, a strict model-level scope check is performed against the `API_Key_Scope` table to ensure the authenticated customer has permission to access the requested `Model_ID`. This security boundary is completely contained within the request-entry layer (`api_server.py`) and does not pollute the background execution logic.
+The REST API uses an `Authorization` header containing the API key for authentication and a `dz-user` header to log user identity. Before any job is submitted or queried, the system validates the key in plaintext against the `API_Keys` table, ensuring it is active and not expired. Furthermore, a strict model-level scope check is performed against the `API_Key_Scope` table to ensure the authenticated customer has permission to access the requested `Model_ID`. This security boundary is completely contained within the request-entry layer (`api_server.py`) and does not pollute the background execution logic.
 
 
 

@@ -62,6 +62,17 @@ class BillingChartResponse(BaseModel):
     Total_Documents: int
     Total_Pages: int
 
+class ExecutionDetailsResponse(BaseModel):
+    Execution_ID: int
+    Triggered_By: str
+    Trigger_Source: Optional[str] = None
+    Execution_Status: str
+    No_of_Documents: Optional[int] = None
+    No_of_page: Optional[int] = None
+    Start_Time: Optional[datetime] = None
+    End_Time: Optional[datetime] = None
+    Runtime_Seconds: Optional[int] = None
+
 class LoginRequest(BaseModel):
     username: str
     password: str

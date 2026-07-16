@@ -286,7 +286,7 @@ export default function CustomerUsers({ customerId }: { customerId: number }) {
                   <Switch 
                     checked={selectedUser.Status === "Active"} 
                     onCheckedChange={toggleUserStatus}
-                    disabled={updateMut.isPending}
+                    disabled={updateMut.isPending || selectedUser.Verified_User}
                   />
                 </div>
               </div>
@@ -298,7 +298,13 @@ export default function CustomerUsers({ customerId }: { customerId: number }) {
                 <Button variant="outline" className="w-full justify-start gap-2" onClick={() => toast.success("Password reset link sent!")}>
                   <Lock className="h-4 w-4" /> Reset Password
                 </Button>
-                <Button variant="destructive" className="w-full justify-start gap-2 bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700" onClick={() => setIsDeleteDialogOpen(true)}>
+                <Button 
+                  variant="destructive" 
+                  className="w-full justify-start gap-2 bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 disabled:opacity-50" 
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  disabled={selectedUser.Verified_User}
+                  title={selectedUser.Verified_User ? "Cannot remove a verified top super admin" : ""}
+                >
                   <Trash2 className="h-4 w-4" /> Remove User
                 </Button>
               </div>
